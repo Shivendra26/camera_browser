@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Camera Feed with Face Recognition</title>
+</head>
+<body>
+    <h1>Live Camera Feed with Face Recognition</h1>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas" style="display: none;"></canvas>
+    <img id="processed" alt="Processed Frame" />
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const processedImg = document.getElementById('processed');
+
+        // Access the camera and get the video stream
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                video.srcObject = stream;
+            })
+            .catch((error) => {
+                console.error('Error accessing the camera:', error);
+            });
+
+        function sendFrame() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataURL = canvas.toDataURL('image/jpeg');
+
+            fetch('http://10.120.8.75:5000/process_frame', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image: dataURL })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                processedImg.src = data.processed_image;
+            })
+            .catch(error => {
+                console.error('Error processing frame:', error);
+                alert('Error processing frame: ' + error.message);  // Alert error message
+            });
+        }
+
+        // Send frames every 1 second (adjust as needed)
+        setInterval(sendFrame, 1000);
+    </script>
+</body>
+</html>
